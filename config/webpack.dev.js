@@ -7,7 +7,6 @@ const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin"
 
 const mode = "development";
 
-// 客户端开发配置
 const devClient = (env) =>
     merge(baseClientConfig(env), {
         entry: {
@@ -35,7 +34,6 @@ const devClient = (env) =>
         devtool: "eval-source-map",
     });
 
-// 服务端开发配置
 const devServer = (env) =>
     merge(baseServerConfig(env), {
         mode,

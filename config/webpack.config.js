@@ -121,7 +121,6 @@ const baseServerConfig = () => {
             ],
         },
 
-        // 不要打包 node_modules 中的依赖
         externalsPresets: {node: true},
         externals: [
             webpackNodeExternals()

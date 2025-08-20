@@ -3,7 +3,8 @@
         "baseUrl": ".",
         "paths": {
             "@/*": ["./src/*"],
-            "@app/*": ["./app/*"]
+            "@app/client/*": ["./app/client/*"],
+            "@app/server/*": ["./app/server/*"]
         },
         "target": "ESNext",
         "module": "ESNext",

@@ -13,6 +13,8 @@
 - 🎯 **TypeScript** - 完整的类型支持
 - 🌐 **Koa.js** - 轻量级的服务端框架
 - 🎨 **CSS 支持** - 支持 CSS 文件和样式提取
+- 🧭 **React Router v6 (SSR)** - 服务端渲染路由
+- 🧪 **React Query (SSR)** - 数据预取与脱水/水合
 
 ## 🛠️ 技术栈
 
@@ -21,6 +23,7 @@
 - TypeScript
 - React Router v6
 - @loadable/component (代码分割)
+- @tanstack/react-query (数据获取与 SSR 水合)
 
 ### 后端
 - Koa.js
@@ -55,6 +58,9 @@ npm install
 npm run dev
 # 或
 pnpm dev
+
+# 在另一个终端启动 Mock 接口服务
+npm run mock
 ```
 
 开发服务器将启动两个服务：
@@ -83,27 +89,32 @@ pnpm clean
 
 ```
 react-custom-ssr/
-├── app/                    # 应用代码
-│   ├── client/             # 客户端入口
-│   │   └── index.tsx       # 客户端水合代码
-│   └── server/             # 服务端代码
-│       ├── index.tsx       # SSR 服务器
-│       ├── html.ts         # HTML 模板生成
-│       └── stream.ts       # 流式渲染逻辑
-├── config/                 # 构建配置
-│   ├── constants.js        # 常量配置
-│   ├── webpack.config.js   # Webpack 基础配置
-│   ├── webpack.dev.js      # 开发环境配置
-│   └── webpack.prod.js     # 生产环境配置
-├── scripts/                # 脚本文件
-│   └── dev.js              # 开发服务器启动脚本
-├── src/                    # 源代码
-│   ├── App.tsx             # 主应用组件
-│   └── App.css             # 应用样式
-└── build/                  # 构建输出目录
-    ├── client/             # 客户端构建文件
-    ├── server.js           # 服务端构建文件
-    └── loadable-stats.json # 代码分割统计文件
+├── app/                      # 应用代码
+│   ├── client/               # 客户端入口
+│   │   └── index.tsx         # 客户端水合（BrowserRouter + React Query）
+│   └── server/               # 服务端代码
+│       ├── index.tsx         # SSR 服务器启动（Koa + @loadable/server）
+│       ├── app.tsx           # 路由匹配 + React Query 预取 + 脱水
+│       ├── html.ts           # HTML 模板（注入脱水后的状态）
+│       └── stream.ts         # 流式渲染逻辑
+├── config/                   # 构建配置
+│   ├── constants.js          # 常量配置
+│   ├── webpack.config.js     # Webpack 基础配置
+│   ├── webpack.dev.js        # 开发环境配置
+│   └── webpack.prod.js       # 生产环境配置
+├── scripts/                  # 脚本文件
+│   └── dev.js                # 开发服务器启动脚本
+├── src/                      # 源代码
+│   ├── index.tsx             # App 组件（useRoutes + Koa context provider）
+│   ├── index.css             # 样式
+│   ├── routes.tsx            # 路由定义（支持 SSR 数据预取元信息）
+│   ├── Home.tsx              # 示例页面，使用 useQuery
+│   ├── Post.tsx              # 示例动态路由，使用 useQuery
+│   └── api.ts                # API 客户端（mock 服务器 base URL）
+└── build/                    # 构建输出目录
+    ├── client/               # 客户端构建文件
+    ├── server.js             # 服务端构建文件
+    └── loadable-stats.json   # 代码分割统计文件
 ```
 
 ## ⚙️ 配置说明
@@ -139,9 +150,66 @@ react-custom-ssr/
 
 开发环境下支持热模块替换，修改代码后无需刷新页面即可看到更新。
 
-## 🤝 贡献
+### SSR 路由与数据预取（React Router + React Query）
 
-欢迎提交 Issue 和 Pull Request！
+- 在 `src/routes.tsx` 定义路由时，可选地为每个路由声明 `queryKey` 与 `loadData`：`queryKey` 支持函数签名以接收动态参数。
+
+```tsx
+// src/routes.tsx
+import { Params, RouteObject } from "react-router-dom";
+import { QueryKey } from "@tanstack/react-query";
+import loadable from "@loadable/component";
+import { api } from "./api";
+
+const Home = loadable(() => import("./Home"), { ssr: true });
+const Post = loadable(() => import("./Post"), { ssr: true });
+
+type PrefetchRouteObject = RouteObject & {
+  queryKey?: QueryKey | ((params: Params<string>) => QueryKey);
+  loadData?: (params: Params<string>) => Promise<unknown>;
+};
+
+export const routes: PrefetchRouteObject[] = [
+  { path: "/", element: <Home />, queryKey: ["home-data"], loadData: () => api.getHomeData() },
+  { path: "/post/:id", element: <Post />, queryKey: (p) => ["post", p.id!], loadData: (p) => api.getPostById(p.id!) },
+];
+```
+
+- 服务端在 `app/server/app.tsx` 里根据匹配到的路由执行预取，随后通过 `dehydrate` 脱水并注入到 HTML。
+
+```tsx
+// app/server/app.tsx（节选）
+import { dehydrate, QueryClient, QueryClientProvider, HydrationBoundary } from "@tanstack/react-query";
+import { matchRoutes } from "react-router-dom";
+import { StaticRouter } from "react-router-dom/server";
+import { routes } from "@/routes";
+
+const queryClient = new QueryClient();
+const matches = matchRoutes(routes, ctx.req.url ?? "");
+// 针对声明了 queryKey + loadData 的路由执行 prefetch ...
+const dehydratedState = dehydrate(queryClient);
+```
+
+- 客户端在 `app/client/index.tsx` 里读取注入的状态并完成水合。
+
+```tsx
+// app/client/index.tsx（节选）
+const dehydratedState = JSON.parse(document.getElementById("__REACT_QUERY_STATE__")?.textContent || "{}");
+hydrateRoot(root, (
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <HydrationBoundary state={dehydratedState}>
+        <App />
+      </HydrationBoundary>
+    </QueryClientProvider>
+  </BrowserRouter>
+));
+```
+
+### Mock 接口
+
+- 项目内置 `json-server` 作为示例数据源，命令：`npm run mock`（默认端口 `http://localhost:8007`）。
+- API 客户端在 `src/api.ts`。
 
 ## 📄 许可证
 

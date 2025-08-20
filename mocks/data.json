@@ -1,0 +1,36 @@
+{
+  "posts": [
+    {
+      "id": 1,
+      "title": "Understanding Server-Side Rendering",
+      "content": "SSR provides better SEO and initial page load performance...",
+      "author": "John Doe",
+      "publishDate": "2024-01-15",
+      "tags": ["react", "ssr", "performance"]
+    },
+    {
+      "id": 2,
+      "title": "Modern CSS Best Practices",
+      "content": "Learn about CSS Grid, Flexbox, and modern layout techniques...",
+      "author": "Jane Smith", 
+      "publishDate": "2024-01-10",
+      "tags": ["css", "design", "frontend"]
+    }
+  ],
+  "home": {
+    "title": "Welcome to React Custom SSR Demo",
+    "description": "This demo showcases server-side rendering with data prefetching, routing, and hydration.",
+    "features": [
+      "Server-Side Rendering with React 18",
+      "Data Prefetching and Hydration",
+      "Code Splitting with @loadable/component", 
+      "Hot Module Replacement in Development",
+      "TypeScript Support"
+    ],
+    "stats": {
+      "totalUsers": 150,
+      "totalPosts": 45,
+      "totalViews": 12500
+    }
+  }
+}

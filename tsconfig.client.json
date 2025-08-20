@@ -2,8 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "types": ["webpack-env"]
   },
-  "include": ["src"],
+  "include": ["src", "app/client"],
   "exclude": ["node_modules", "build"]
 }

@@ -3,8 +3,8 @@
   "compilerOptions": {
     "lib": ["ESNext"],
     "types": ["node"],
-    "allowJs": true
+    "allowJs": true,
   },
-  "include": ["app", "config"],
+  "include": ["app/server", "config"],
   "exclude": ["node_modules", "build"]
 }
